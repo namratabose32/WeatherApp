@@ -3,6 +3,7 @@ import 'dart:ui';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:intl/intl.dart';
 import 'package:weather_app/additional_info_item.dart';
 import 'package:weather_app/hourly_forecast_item.dart';
 import 'package:http/http.dart' as http;
@@ -15,6 +16,7 @@ class WeatherScreen extends StatefulWidget {
 }
 
 class _WeatherScreenState extends State<WeatherScreen> {
+  late Future<Map<String, dynamic>> weather;
   Future<Map<String, dynamic>> getCurrentWeather() async {
     try {
       String cityName = 'London';
@@ -33,6 +35,12 @@ class _WeatherScreenState extends State<WeatherScreen> {
   }
 
   @override
+  void initState() {
+    super.initState();
+    weather = getCurrentWeather();
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
@@ -45,11 +53,17 @@ class _WeatherScreenState extends State<WeatherScreen> {
         centerTitle: true,
         actions: [
           // to use icons
-          IconButton(onPressed: () {}, icon: const Icon(Icons.refresh))
+          IconButton(
+              onPressed: () {
+                setState(() {
+                  weather = getCurrentWeather();
+                });
+              },
+              icon: const Icon(Icons.refresh))
         ],
       ),
       body: FutureBuilder(
-          future: getCurrentWeather(),
+          future: weather,
           builder: (context, snapshot) {
             if (snapshot.connectionState == ConnectionState.waiting) {
               return const Center(child: CircularProgressIndicator.adaptive());
@@ -62,7 +76,6 @@ class _WeatherScreenState extends State<WeatherScreen> {
             final currentSky = data['list'][0]['weather'][0]['main'];
             final currentPressure = data['list'][0]['main']['pressure'];
             final currentWindSpeed = data['list'][0]['wind']['speed'];
-            print(currentPressure);
             final currentHumidity = data['list'][0]['main']['humidity'];
 
             return SingleChildScrollView(
@@ -83,16 +96,16 @@ class _WeatherScreenState extends State<WeatherScreen> {
                           child: BackdropFilter(
                             filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
                             child: Padding(
-                              padding: EdgeInsets.all(16.0),
+                              padding: const EdgeInsets.all(16.0),
                               child: Column(
                                 children: [
                                   Text(
                                     '$currentTemp K',
-                                    style: TextStyle(
+                                    style: const TextStyle(
                                         fontSize: 32,
                                         fontWeight: FontWeight.bold),
                                   ),
-                                  SizedBox(
+                                  const SizedBox(
                                     height: 16,
                                   ),
                                   Icon(
@@ -101,12 +114,12 @@ class _WeatherScreenState extends State<WeatherScreen> {
                                           ? Icons.cloud
                                           : Icons.sunny,
                                       size: 64),
-                                  SizedBox(
+                                  const SizedBox(
                                     height: 16,
                                   ),
                                   Text(
                                     "$currentSky",
-                                    style: TextStyle(
+                                    style: const TextStyle(
                                       fontSize: 20,
                                     ),
                                   )
@@ -128,26 +141,29 @@ class _WeatherScreenState extends State<WeatherScreen> {
                     const SizedBox(
                       height: 16,
                     ),
-                    SingleChildScrollView(
-                      scrollDirection: Axis.horizontal,
-                      child: Row(
-                        children: [
-                          for (int i = 0; i < 5; i++)
-                            HourlyForecastItem(
-                              time: data['list'][i + 1]['dt'].toString(),
-                              temperature: data['list'][i + 1]['main']['temp']
-                                  .toString(),
-                              icon: data['list'][i + 1]['weather'][0]['main'] ==
-                                          'Clouds' ||
-                                      data['list'][i + 1]['weather'][0]
-                                              ['main'] ==
-                                          'Rain'
+                    //hourly forecast
+                    SizedBox(
+                      height: 120,
+                      child: ListView.builder(
+                          scrollDirection: Axis.horizontal,
+                          itemCount: 5,
+                          itemBuilder: ((context, index) {
+                            final hourlyForecast = data['list'][index + 1];
+                            final time =
+                                DateTime.parse(hourlyForecast['dt_txt']);
+                            final hourlySky =
+                                data['list'][index + 1]['weather'][0]['main'];
+                            return HourlyForecastItem(
+                              time: DateFormat.Hm().format(time), //hour:min
+                              temperature:
+                                  hourlyForecast['main']['temp'].toString(),
+                              icon: hourlySky == 'Clouds' || hourlySky == 'Rain'
                                   ? Icons.cloud
                                   : Icons.sunny,
-                            ),
-                        ],
-                      ),
+                            );
+                          })),
                     ),
+
                     //weather forcast card
                     const SizedBox(
                       height: 20,
